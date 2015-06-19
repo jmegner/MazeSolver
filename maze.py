@@ -55,7 +55,7 @@ class Maze:
         self.numCols = len(rows[0])
         self.startCoord = self.coordOfCellType(c_start)
         self.finishCoord = self.coordOfCellType(c_finish)
-        self.dists = [[None] * self.numCols] * self.numRows
+        self.dists = [ [None] * self.numCols for i in range(N) ]
         raise NotImplementedError("test previous line")
 
 
