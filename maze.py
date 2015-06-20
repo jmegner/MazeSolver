@@ -14,11 +14,29 @@ class Maze:
     same with 'c' and 'col'
     '''
 
+
+    c_maxDist = 1e99
+    c_wall = '#'
+    c_open = ' '
+    c_path = '.'
+    c_start = 'S'
+    c_finish = 'F'
+    c_validChars = {c_wall, c_open, c_path, c_start, c_finish}
+
+
     class Coord:
-        def __init__(self, r, c, dist = None):
+        def __init__(self, r, c, dist = c_maxDist):
             self.r = r
             self.c = c
             self.dist = dist
+
+
+        def __cmp__(self, other):
+            return cmp(self.asTuple(), other.asTuple())
+
+
+        def asTuple(self):
+            return (self.dist, self.r, self.c)
 
 
         def up(self):
@@ -41,14 +59,6 @@ class Maze:
             return [ self.up(), self.right(), self.down(), self.left(), ]
 
 
-    c_wall = '#'
-    c_open = ' '
-    c_path = '.'
-    c_start = 'S'
-    c_finish = 'F'
-    c_validChars = {c_wall, c_open, c_path, c_start, c_finish}
-
-
     def __init__(self, rows):
         self.grid = rows
         self.numRows = len(rows)
@@ -56,7 +66,6 @@ class Maze:
         self.startCoord = self.coordOfCellType(c_start)
         self.finishCoord = self.coordOfCellType(c_finish)
         self.dists = [ [None] * self.numCols for i in range(N) ]
-        raise NotImplementedError("test previous line")
 
 
     @staticmethod
@@ -81,9 +90,18 @@ class Maze:
         return self.grid[coord.r][coord.c]
 
 
+    def getDist(self, coord):
+        return self.dists[coord.r][coord.c]
+
+
+    def setDist(self, coord, dist):
+        self.dists[coord.r][coord.c] = dist
+
+
     def getWalkableNeighbors(self, coord):
-        [neighbor for neighbor in coord.naiveNeighbors()
-            if self.inBounds(neighbor) and self.getCell(neighbor) == c_open]
+        [Coord(neighbor.r, neighbor.c, self.getDist(neighbor))
+                for neighbor in coord.naiveNeighbors()
+                if self.inBounds(neighbor) and self.getCell(neighbor) == c_open]
 
 
     def inBounds(self, coord):
@@ -91,22 +109,28 @@ class Maze:
             and coord.r < self.numRows and coord.c < self.numCols)
 
 
-    def solved(self):
-        analyzedCoords = {}
-        frontierCoords = {}
-        nextFrontierCoords = {}
+    def solve(self):
+        solvedCoords = {}
+        unsolvedCoords = []
 
-        for r, row in enumerate(grid):
-            if c_start in row
-                startC = row.index(c_finish)
-                frontierCoords.add(Coord(r, c, 0))
-                break
+        for r in range(self.numRows):
+            for c in range(self.numCols):
+                dist = c_maxDist
+                if self.grid[r][c] == c_start:
+                    dist = 0
+                heapq.heappush(unsolvedCoords, Coord(r, c, dist))
 
         foundFinish = False
 
-        while not foundFinish:
-            coord = frontierCoords.pop()
-            neighbors = self.getNeighbors(coord)
+        while not foundFinish and unsolvedCoords:
+            coord = heapq.heappop(unsolvedCoords)
+            solvedCoords.add(coord)
+            neighbors = self.getWalkableNeighbors(coord)
+
+            for neighbor in neighbors:
+                raise NotImplementedError("do comparison of neighbor.dist to new dist")
+                self.setDist(neighbor, currentDist)
+
 
 
     @staticmethod
