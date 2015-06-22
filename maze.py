@@ -32,6 +32,10 @@ class Coord(RcTuple):
         return [ self.up(), self.right(), self.down(), self.left(), ]
 
 
+    def manhattanDist(self, other):
+        return abs(self.r - other.r) + abs(self.c - other.c)
+
+
 class Maze:
 
     c_maxDist = 1e99
@@ -112,6 +116,10 @@ class Maze:
         self.dists[coord.r][coord.c] = dist
 
 
+    def minPossibleRemainingDist(self, coord):
+        return coord.manhattanDist(self.finishCoord)
+
+
     def getWalkableNeighbors(self, coord):
         return [Coord(neighbor.r, neighbor.c)
                 for neighbor in coord.naiveNeighbors()
@@ -125,6 +133,11 @@ class Maze:
 
     def getMinDistCoord(self, coords):
         return min(coords, key = self.getDist)
+
+
+    def getMinEstimatedTotalDistCoord(self, coords):
+        return min(coords, key = lambda coord
+            : self.getDist(coord) + self.minPossibleRemainingDist(coord))
 
 
     def getCoordOfCellType(self, cellType):
@@ -141,7 +154,6 @@ class Maze:
 
 
     def _computeBestDists(self):
-        solvedCoords = set()
         unsolvedCoords = set()
 
         for r in range(self.numRows):
@@ -157,11 +169,11 @@ class Maze:
         foundFinish = False
 
         while not foundFinish and unsolvedCoords:
-            newlySolvedCoord = self.getMinDistCoord(unsolvedCoords)
+            #newlySolvedCoord = self.getMinDistCoord(unsolvedCoords)
+            newlySolvedCoord = self.getMinEstimatedTotalDistCoord(unsolvedCoords)
             newFrontierDist = self.getDist(newlySolvedCoord) + 1
 
             unsolvedCoords.remove(newlySolvedCoord)
-            solvedCoords.add(newlySolvedCoord)
 
             neighbors = self.getWalkableNeighbors(newlySolvedCoord)
 
