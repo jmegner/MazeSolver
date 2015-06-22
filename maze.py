@@ -180,6 +180,9 @@ class Maze:
 
                     openCoords.add(neighbor)
 
+                    # note: our termination deviates from standard A* algo; we
+                    # can stop before newlySolvedCoord == self.finishCoord
+                    # because of equal traversal/walk costs for all cells
                     if self.getCell(neighbor) == self.c_finish:
                         foundFinish = True
                         break
