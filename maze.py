@@ -8,12 +8,31 @@ import copy
 import sys
 
 
-class Maze:
-    '''
-    note that 'r' is a row idx, while 'row' is the contents of a row;
-    same with 'c' and 'col'
-    '''
+RcTuple = collections.namedtuple('Rc', ['r', 'c'])
 
+class Coord(RcTuple):
+
+    def up(self):
+        return Coord(self.r - 1, self.c)
+
+
+    def down(self):
+        return Coord(self.r + 1, self.c)
+
+
+    def left(self):
+        return Coord(self.r, self.c - 1)
+
+
+    def right(self):
+        return Coord(self.r, self.c + 1)
+
+
+    def naiveNeighbors(self):
+        return [ self.up(), self.right(), self.down(), self.left(), ]
+
+
+class Maze:
 
     c_maxDist = 1e99
     c_wall = '#'
@@ -22,30 +41,6 @@ class Maze:
     c_start = 'S'
     c_finish = 'F'
     c_validInputChars = {c_wall, c_open, c_start, c_finish}
-
-
-    RcTuple = collections.namedtuple('Rc', ['r', 'c'])
-
-    class Coord(RcTuple):
-
-        def up(self):
-            return Maze.Coord(self.r - 1, self.c)
-
-
-        def down(self):
-            return Maze.Coord(self.r + 1, self.c)
-
-
-        def left(self):
-            return Maze.Coord(self.r, self.c - 1)
-
-
-        def right(self):
-            return Maze.Coord(self.r, self.c + 1)
-
-
-        def naiveNeighbors(self):
-            return [ self.up(), self.right(), self.down(), self.left(), ]
 
 
     def __init__(self, cells):
@@ -104,6 +99,11 @@ class Maze:
         return self.cells[coord.r][coord.c]
 
 
+    def isWalkable(self, coord):
+        return (self.inBounds(coord)
+            and self.getCell(coord) != self.c_wall)
+
+
     def getDist(self, coord):
         return self.dists[coord.r][coord.c]
 
@@ -113,9 +113,9 @@ class Maze:
 
 
     def getWalkableNeighbors(self, coord):
-        return [Maze.Coord(neighbor.r, neighbor.c)
+        return [Coord(neighbor.r, neighbor.c)
                 for neighbor in coord.naiveNeighbors()
-                if self.inBounds(neighbor) and self.getCell(neighbor) != self.c_wall]
+                if self.isWalkable(neighbor)]
 
 
     def inBounds(self, coord):
@@ -131,7 +131,7 @@ class Maze:
         for r in range(self.numRows):
             for c in range(self.numCols):
                 if self.cells[r][c] == cellType:
-                    return Maze.Coord(r, c)
+                    return Coord(r, c)
         return None
 
 
@@ -152,7 +152,7 @@ class Maze:
                     self.dists[r][c] = self.c_maxDist
 
                 if self.cells[r][c] != self.c_wall:
-                    unsolvedCoords.add(self.Coord(r, c))
+                    unsolvedCoords.add(Coord(r, c))
 
         foundFinish = False
 
