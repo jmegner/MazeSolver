@@ -154,32 +154,31 @@ class Maze:
 
 
     def _computeBestDists(self):
-        unsolvedCoords = set()
+        openCoords = set()
 
         for r in range(self.numRows):
             for c in range(self.numCols):
                 if self.cells[r][c] == self.c_start:
                     self.dists[r][c] = 0
+                    openCoords.add(Coord(r, c))
                 else:
                     self.dists[r][c] = self.c_maxDist
 
-                if self.cells[r][c] != self.c_wall:
-                    unsolvedCoords.add(Coord(r, c))
-
         foundFinish = False
 
-        while not foundFinish and unsolvedCoords:
-            #newlySolvedCoord = self.getMinDistCoord(unsolvedCoords)
-            newlySolvedCoord = self.getMinEstimatedTotalDistCoord(unsolvedCoords)
+        while not foundFinish and openCoords:
+            newlySolvedCoord = self.getMinEstimatedTotalDistCoord(openCoords)
             newFrontierDist = self.getDist(newlySolvedCoord) + 1
 
-            unsolvedCoords.remove(newlySolvedCoord)
+            openCoords.remove(newlySolvedCoord)
 
             neighbors = self.getWalkableNeighbors(newlySolvedCoord)
 
             for neighbor in neighbors:
                 if newFrontierDist < self.getDist(neighbor):
                     self.setDist(neighbor, newFrontierDist)
+
+                    openCoords.add(neighbor)
 
                     if self.getCell(neighbor) == self.c_finish:
                         foundFinish = True
