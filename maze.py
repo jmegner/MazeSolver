@@ -24,24 +24,24 @@ class Maze:
     c_validInputChars = {c_wall, c_open, c_start, c_finish}
 
 
-    RcTuple = collections.namedtuple('RcTuple', ['r', 'c'])
+    RcTuple = collections.namedtuple('Rc', ['r', 'c'])
 
     class Coord(RcTuple):
 
         def up(self):
-            return Coord(self.r - 1, self.c)
+            return Maze.Coord(self.r - 1, self.c)
 
 
         def down(self):
-            return Coord(self.r + 1, self.c)
+            return Maze.Coord(self.r + 1, self.c)
 
 
         def left(self):
-            return Coord(self.r, self.c - 1)
+            return Maze.Coord(self.r, self.c - 1)
 
 
         def right(self):
-            return Coord(self.r, self.c - 1)
+            return Maze.Coord(self.r, self.c + 1)
 
 
         def naiveNeighbors(self):
@@ -56,8 +56,8 @@ class Maze:
         self.numRows = len(cells)
         self.numCols = len(cells[0])
 
-        #self.startCoord = self.coordOfCellType(self.c_start)
-        #self.finishCoord = self.coordOfCellType(self.c_finish)
+        self.startCoord = self.getCoordOfCellType(self.c_start)
+        self.finishCoord = self.getCoordOfCellType(self.c_finish)
 
         self.dists = [ [self.c_maxDist] * self.numCols
             for i in range(self.numRows) ]
@@ -83,6 +83,23 @@ class Maze:
         return '\n'.join([''.join(row) for row in self.pathedCells])
 
 
+    def prettyDists(self):
+        prettyGrid = ""
+
+        for r in range(self.numRows):
+            for c in range(self.numCols):
+                dist = self.dists[r][c]
+
+                if dist == self.c_maxDist:
+                    prettyGrid += "    X"
+                else:
+                    prettyGrid += "{:>5d}".format(dist)
+
+            prettyGrid += "\n"
+
+        return prettyGrid
+
+
     def getCell(self, coord):
         return self.cells[coord.r][coord.c]
 
@@ -96,9 +113,9 @@ class Maze:
 
 
     def getWalkableNeighbors(self, coord):
-        [self.Coord(neighbor.r, neighbor.c, self.getDist(neighbor))
+        return [Maze.Coord(neighbor.r, neighbor.c)
                 for neighbor in coord.naiveNeighbors()
-                if self.inBounds(neighbor) and self.getCell(neighbor) == c_open]
+                if self.inBounds(neighbor) and self.getCell(neighbor) != self.c_wall]
 
 
     def inBounds(self, coord):
@@ -107,11 +124,23 @@ class Maze:
 
 
     def getMinDistCoord(self, coords):
-        min(coords,
-            key = lambda a, b : a if self.getDist(a) < self.getDist(b) else b)
+        return min(coords, key = self.getDist)
+
+
+    def getCoordOfCellType(self, cellType):
+        for r in range(self.numRows):
+            for c in range(self.numCols):
+                if self.cells[r][c] == cellType:
+                    return Maze.Coord(r, c)
+        return None
 
 
     def solve(self):
+        self._computeBestDists()
+        self._indicatePath()
+
+
+    def _computeBestDists(self):
         solvedCoords = set()
         unsolvedCoords = set()
 
@@ -137,12 +166,33 @@ class Maze:
             neighbors = self.getWalkableNeighbors(newlySolvedCoord)
 
             for neighbor in neighbors:
-                if newFrontierDist < neighbor.dist:
+                if newFrontierDist < self.getDist(neighbor):
                     self.setDist(neighbor, newFrontierDist)
 
                     if self.getCell(neighbor) == self.c_finish:
                         foundFinish = True
                         break
+
+
+    def _indicatePath(self):
+        print("dists:\n{}".format(self.prettyDists()))
+        if self.getDist(self.finishCoord) == self.c_maxDist:
+            return
+
+        currCoord = self.finishCoord
+        reversePath = []
+
+        while currCoord != self.startCoord:
+            if currCoord != self.finishCoord:
+                self.pathedCells[currCoord.r][currCoord.c] = self.c_path
+
+            reversePath.append(currCoord)
+
+            currCoord = self.getMinDistCoord(
+                self.getWalkableNeighbors(currCoord))
+
+        reversePath.append(self.startCoord)
+        self.pathCoords = reversed(reversePath)
 
 
     @staticmethod
@@ -163,10 +213,6 @@ def main(argv = None):
         print("usage: maze.py MAZE_FILE [MAZE_FILE ...]")
         return -1
 
-    if True:
-        fiddleVar = 7
-    print("fiddleVar={}".format(fiddleVar))
-
     for inputFileName in argv[1:]:
         print("processing {}".format(inputFileName))
         inputFile = open(inputFileName)
@@ -174,6 +220,7 @@ def main(argv = None):
 
         print("{}\n{}".format(inputFileName, maz))
         maz.solve()
+        print("\n{}".format(maz))
 
     return 0
 
