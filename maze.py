@@ -187,7 +187,6 @@ class Maze:
 
 
     def _indicatePath(self):
-        print("dists:\n{}".format(self.prettyDists()))
         if self.getDist(self.finishCoord) == self.c_maxDist:
             return
 
@@ -231,7 +230,10 @@ def main(argv = None):
         maz = Maze.fromFile(inputFile)
 
         print("{}\n{}".format(inputFileName, maz))
+
         maz.solve()
+
+        print("dists:\n{}".format(maz.prettyDists()))
         print("\n{}".format(maz))
 
     return 0
@@ -239,6 +241,10 @@ def main(argv = None):
 
 if __name__ == "__main__":
     # sys.exit(main(sys.argv))
-    sys.exit(main(["", "sample_mazes/maze_00.txt"]))
+    sys.exit(main([
+        "",
+        "sample_mazes/maze_00.txt",
+        "sample_mazes/maze_01.txt",
+        ]))
 
 
