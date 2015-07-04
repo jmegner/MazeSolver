@@ -10,22 +10,22 @@ import sys
 
 RcTuple = collections.namedtuple('Rc', ['r', 'c'])
 
-class Coord(RcTuple):
+class Loc(RcTuple):
 
     def up(self):
-        return Coord(self.r - 1, self.c)
+        return Loc(self.r - 1, self.c)
 
 
     def down(self):
-        return Coord(self.r + 1, self.c)
+        return Loc(self.r + 1, self.c)
 
 
     def left(self):
-        return Coord(self.r, self.c - 1)
+        return Loc(self.r, self.c - 1)
 
 
     def right(self):
-        return Coord(self.r, self.c + 1)
+        return Loc(self.r, self.c + 1)
 
 
     def naiveNeighbors(self):
@@ -36,7 +36,7 @@ class Coord(RcTuple):
         return abs(self.r - other.r) + abs(self.c - other.c)
 
 
-class Maze:
+class GridMaze:
 
     c_maxDist = 1e99
     c_wall = '#'
@@ -55,13 +55,13 @@ class Maze:
         self.numRows = len(cells)
         self.numCols = len(cells[0])
 
-        self.startCoord = self.getCoordOfCellType(self.c_start)
-        self.finishCoord = self.getCoordOfCellType(self.c_finish)
+        self.startLoc = self.getLocOfCellType(self.c_start)
+        self.finishLoc = self.getLocOfCellType(self.c_finish)
 
         self.dists = [ [self.c_maxDist] * self.numCols
             for i in range(self.numRows) ]
         self.pathedCells = copy.deepcopy(self.cells)
-        self.pathCoords = []
+        self.pathLocs = []
 
 
     @staticmethod
@@ -73,9 +73,9 @@ class Maze:
                 continue
 
             row = list(textLine.rstrip('\r\n'))
-            Maze._addRow(cells, row)
+            GridMaze._addRow(cells, row)
 
-        return Maze(cells)
+        return GridMaze(cells)
 
 
     def __str__(self):
@@ -99,52 +99,52 @@ class Maze:
         return prettyGrid
 
 
-    def getCell(self, coord):
-        return self.cells[coord.r][coord.c]
+    def getCell(self, loc):
+        return self.cells[loc.r][loc.c]
 
 
-    def isWalkable(self, coord):
-        return (self.inBounds(coord)
-            and self.getCell(coord) != self.c_wall)
+    def isWalkable(self, loc):
+        return (self.inBounds(loc)
+            and self.getCell(loc) != self.c_wall)
 
 
-    def getDist(self, coord):
-        return self.dists[coord.r][coord.c]
+    def getDist(self, loc):
+        return self.dists[loc.r][loc.c]
 
 
-    def setDist(self, coord, dist):
-        self.dists[coord.r][coord.c] = dist
+    def setDist(self, loc, dist):
+        self.dists[loc.r][loc.c] = dist
 
 
-    def minPossibleRemainingDist(self, coord):
-        return coord.manhattanDist(self.finishCoord)
+    def minPossibleRemainingDist(self, loc):
+        return loc.manhattanDist(self.finishLoc)
 
 
-    def getWalkableNeighbors(self, coord):
-        return [Coord(neighbor.r, neighbor.c)
-                for neighbor in coord.naiveNeighbors()
+    def getWalkableNeighbors(self, loc):
+        return [Loc(neighbor.r, neighbor.c)
+                for neighbor in loc.naiveNeighbors()
                 if self.isWalkable(neighbor)]
 
 
-    def inBounds(self, coord):
-        return (coord.r >= 0 and coord.c >= 0
-            and coord.r < self.numRows and coord.c < self.numCols)
+    def inBounds(self, loc):
+        return (loc.r >= 0 and loc.c >= 0
+            and loc.r < self.numRows and loc.c < self.numCols)
 
 
-    def getMinDistCoord(self, coords):
-        return min(coords, key = self.getDist)
+    def getMinDistLoc(self, locs):
+        return min(locs, key = self.getDist)
 
 
-    def getMinEstimatedTotalDistCoord(self, coords):
-        return min(coords, key = lambda coord
-            : self.getDist(coord) + self.minPossibleRemainingDist(coord))
+    def getMinEstimatedTotalDistLoc(self, locs):
+        return min(locs, key = lambda loc
+            : self.getDist(loc) + self.minPossibleRemainingDist(loc))
 
 
-    def getCoordOfCellType(self, cellType):
+    def getLocOfCellType(self, cellType):
         for r in range(self.numRows):
             for c in range(self.numCols):
                 if self.cells[r][c] == cellType:
-                    return Coord(r, c)
+                    return Loc(r, c)
         return None
 
 
@@ -154,63 +154,61 @@ class Maze:
 
 
     def _computeBestDists(self):
-        openCoords = set()
+        openLocs = set()
 
         for r in range(self.numRows):
             for c in range(self.numCols):
                 if self.cells[r][c] == self.c_start:
                     self.dists[r][c] = 0
-                    openCoords.add(Coord(r, c))
+                    openLocs.add(Loc(r, c))
                 else:
                     self.dists[r][c] = self.c_maxDist
 
         foundFinish = False
 
-        while not foundFinish and openCoords:
-            newlySolvedCoord = self.getMinEstimatedTotalDistCoord(openCoords)
-            newFrontierDist = self.getDist(newlySolvedCoord) + 1
+        while not foundFinish and openLocs:
+            newlySolvedLoc = self.getMinEstimatedTotalDistLoc(openLocs)
 
-            openCoords.remove(newlySolvedCoord)
+            if self.getCell(newlySolvedLoc) == self.c_finish:
+                foundFinish = True
+                break
 
-            neighbors = self.getWalkableNeighbors(newlySolvedCoord)
+            newFrontierDist = self.getDist(newlySolvedLoc) + 1
+
+            openLocs.remove(newlySolvedLoc)
+
+            neighbors = self.getWalkableNeighbors(newlySolvedLoc)
 
             for neighbor in neighbors:
                 if newFrontierDist < self.getDist(neighbor):
                     self.setDist(neighbor, newFrontierDist)
 
-                    openCoords.add(neighbor)
-
-                    # note: our termination deviates from standard A* algo; we
-                    # can stop before newlySolvedCoord == self.finishCoord
-                    # because of equal traversal/walk costs for all cells
-                    if self.getCell(neighbor) == self.c_finish:
-                        foundFinish = True
-                        break
+                    openLocs.add(neighbor)
 
 
     def _indicatePath(self):
-        if self.getDist(self.finishCoord) == self.c_maxDist:
+        if self.getDist(self.finishLoc) == self.c_maxDist:
             return
 
-        currCoord = self.finishCoord
+        currLoc = self.finishLoc
         reversePath = []
 
-        while currCoord != self.startCoord:
-            if currCoord != self.finishCoord:
-                self.pathedCells[currCoord.r][currCoord.c] = self.c_path
+        while currLoc != self.startLoc:
+            if currLoc != self.finishLoc:
+                self.pathedCells[currLoc.r][currLoc.c] = self.c_path
 
-            reversePath.append(currCoord)
+            reversePath.append(currLoc)
 
-            currCoord = self.getMinDistCoord(
-                self.getWalkableNeighbors(currCoord))
+            currLoc = self.getMinDistLoc(
+                self.getWalkableNeighbors(currLoc))
 
-        reversePath.append(self.startCoord)
-        self.pathCoords = reversed(reversePath)
+        reversePath.append(self.startLoc)
+        self.pathLocs = reversed(reversePath)
 
 
     @staticmethod
     def _addRow(cells, row):
-        invalidChars = set(row) - Maze.c_validInputChars
+        invalidChars = set(row) - GridMaze.c_validInputChars
         if len(invalidChars) > 0:
             raise ValueError(
                 "invalid maze characters: {}".format(invalidChars))
@@ -223,20 +221,20 @@ class Maze:
 
 def main(argv = None):
     if not argv or len(argv) < 2:
-        print("usage: maze.py MAZE_FILE [MAZE_FILE ...]")
+        print("usage: grid_maze.py MAZE_FILE [MAZE_FILE ...]")
         return -1
 
     for inputFileName in argv[1:]:
         print("processing {}".format(inputFileName))
         inputFile = open(inputFileName)
-        maz = Maze.fromFile(inputFile)
+        maze = GridMaze.fromFile(inputFile)
 
-        print("{}\n{}".format(inputFileName, maz))
+        print("{}\n{}".format(inputFileName, maze))
 
-        maz.solve()
+        maze.solve()
 
-        print("dists:\n{}".format(maz.prettyDists()))
-        print("\n{}".format(maz))
+        print("dists:\n{}".format(maze.prettyDists()))
+        print("\n{}".format(maze))
 
     return 0
 
