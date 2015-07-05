@@ -1,8 +1,6 @@
 # author: Jacob Egner
 
 
-from __future__ import division
-from __future__ import print_function
 import collections
 import copy
 import sys
@@ -45,12 +43,14 @@ class GridMaze:
     c_start = 'S'
     c_finish = 'F'
     c_validInputChars = {c_wall, c_open, c_start, c_finish}
+    c_walkableTypes = {c_open, c_start, c_finish}
+    c_pathLikeTypes = {c_path, c_start, c_finish}
 
 
     def __init__(self, cells):
         'cells is 2d list of chars'
 
-        self.cells = cells
+        self.cells = copy.deepcopy(cells)
 
         self.numRows = len(cells)
         self.numCols = len(cells[0])
@@ -203,7 +203,7 @@ class GridMaze:
                 self.getWalkableNeighbors(currLoc))
 
         reversePath.append(self.startLoc)
-        self.pathLocs = reversed(reversePath)
+        self.pathLocs = list(reversed(reversePath))
 
 
     @staticmethod
