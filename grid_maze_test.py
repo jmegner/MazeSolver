@@ -72,28 +72,29 @@ class GridMazeTest(unittest.TestCase):
     def testSolvePathGood(self):
         self.maze.solve()
 
-        # test that path is short enough
-        self.assertEqual(len(self.maze.pathLocs), self.s_grid1BestPathLen + 1)
+        pathLocs = [node.nodeId for node in self.maze._aStar.pathToFinish]
 
-        numPathCells = sum([self.maze.pathedCells[r][c] == self.maze.c_path
+        # test that path is short enough
+        self.assertEqual(len(pathLocs), self.s_grid1BestPathLen + 1)
+
+        numPathCells = sum([self.maze.solvedCells[r][c] == self.maze.c_path
             for r in range(self.maze.numRows)
             for c in range(self.maze.numCols)])
 
-        # test that length of path matches pathedCells
-        self.assertEqual(numPathCells, len(self.maze.pathLocs) - 2)
+        # test that length of path matches solvedCells
+        self.assertEqual(numPathCells, len(pathLocs) - 2)
 
         # test that path starts and ends correctly
-        self.assertTrue(self.maze.pathLocs[0] == self.s_grid1StartLoc)
-        self.assertTrue(self.maze.pathLocs[-1] == self.s_grid1FinishLoc)
+        self.assertTrue(pathLocs[0] == self.s_grid1StartLoc)
+        self.assertTrue(pathLocs[-1] == self.s_grid1FinishLoc)
 
-        for currLoc, prevLoc in zip(
-                self.maze.pathLocs[1:], self.maze.pathLocs[0:-1]):
+        for currLoc, prevLoc in zip(pathLocs[1:], pathLocs[0:-1]):
             # test locs contiguous
             self.assertEqual(currLoc.manhattanDist(prevLoc), 1)
 
-            # test loc is compatible with pathedCells
+            # test loc is compatible with solvedCells
             self.assertTrue(
-                self.maze.pathedCells[currLoc.r][currLoc.c]
+                self.maze.solvedCells[currLoc.r][currLoc.c]
                 in self.maze.c_pathLikeTypes)
 
             # test loc is compatible with our precomputed possible path cells

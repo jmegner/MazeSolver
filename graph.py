@@ -1,23 +1,34 @@
 # author: Jacob Egner
+# date: 2015-07-05
 
 
 import collections
 import copy
 import itertools
+import functools
+
+
+@functools.total_ordering
+class VeryBig:
+    def __eq__(self, other): return isinstance(other, VeryBig)
+    def __lt__(self, other): return False
+    def __add__(self, other): return self
+    def __radd__(self, other): return self
 
 
 class Edge(collections.namedtuple('Edge', ['srcId', 'dstId', 'cost'])):
     pass
 
 
+@functools.total_ordering
 class Node:
 
     def __init__(self, nodeId, edges, estimatedRemainingDist = 0):
         self.nodeId = nodeId
         self.edges = edges
         self.pathParent = None
+        self.currDist = VeryBig()
         self.estimatedRemainingDist = estimatedRemainingDist
-        self.bestDist = None
 
 
     def __str__(self):
@@ -25,12 +36,24 @@ class Node:
 
 
     def __repr__(self):
-        return "Node(id={},parent={},bestDist={},remDist={},edges={})".format(
+        return "Node(id={},parent={},currDist={},remDist={},edges={})".format(
             self.nodeId,
             self.pathParent,
-            self.bestDist,
+            self.currDist,
             self.estimatedRemainingDist,
             self.edges);
+
+
+    def __eq__(self, other):
+        return self.possibleTotalPathLen() == other.possibleTotalPathLen()
+
+
+    def __lt__(self, other):
+        return self.possibleTotalPathLen() < other.possibleTotalPathLen()
+
+
+    def possibleTotalPathLen(self):
+        return self.currDist + self.estimatedRemainingDist
 
 
     def getNeighborIds(self):
@@ -55,42 +78,73 @@ class AStar:
     @staticmethod
     def fromGrid(
         grid,
-        startR, startC, finishR, finishC,
-        isNodeableFunc,
-        neighborAndCostsFunc,
+        startId, finishId,
+        neighborIdsAndCostsFunc,
         estimatedRemainingDistFunc
     ):
-        raise NotImplementedError('''
-            think about multiple starts, multiple finishes, and whether to
-            nodify every grid cell, or to do a basic iterative
-            is-reachable-from-start sweep of nodifying grid cells
-            ''')
         nodeMap = {}
-        numR = len(grid)
-        numC = len(grid[0])
+        visitedNodeIds = set()
+        nodeIdStack = [startId]
 
-        startId = (startR, startC)
+        while nodeIdStack:
+            nodeId = nodeIdStack.pop()
+            estimatedRemainingDist = estimatedRemainingDistFunc(nodeId)
+            edges = [Edge(nodeId, neighborId, cost)
+                for neighborId, cost in neighborIdsAndCostsFunc(nodeId)]
 
-        if finishR is None or finishC is None:
-            finishId = None
-        else
-            finishId = (finishR, finishC)
+            nodeMap[nodeId] = Node(nodeId, edges, estimatedRemainingDist)
 
-        for r, c in itertools.product(range(numR), range(numC)):
-            if isNodeableFunc(grid, r, c):
-                nodeId = (r, c)
-                edges = [Edge(srcId=nodeId, dstId=(r2, c2), cost=cost)]
-                estimatedRemainingDist = estimatedRemainingDistFunc(
-                    grid, r, c, finishR, finishC)
+            visitedNodeIds.add(nodeId)
 
-                nodeMap[nodeId] = Node(nodeId, edges, estimatedRemainingDist)
+            for edge in edges:
+                if edge.dstId not in visitedNodeIds:
+                    nodeIdStack.append(edge.dstId)
 
         return AStar(nodeMap, startId, finishId)
 
 
     def solve(self):
-        openNodes = set()
+        self._explore()
+        self._markPath()
 
-        self.nodeMap[self.startId].bestDist = 0
+
+    def _explore(self):
+        openNodeIds = set()
+
+        self.nodeMap[self.startId].currDist = 0
+        openNodeIds.add(self.startId)
+
+        while openNodeIds:
+            newlySolvedNode = min(map(
+                lambda nodeId: self.nodeMap[nodeId],
+                openNodeIds))
+
+            if newlySolvedNode.nodeId == self.finishId:
+                break
+
+            openNodeIds.remove(newlySolvedNode.nodeId)
+
+            for edge in newlySolvedNode.edges:
+                newDist = newlySolvedNode.currDist + edge.cost
+                neighbor = self.nodeMap[edge.dstId]
+
+                if newDist < neighbor.currDist:
+                    neighbor.currDist = newDist
+                    neighbor.pathParent = newlySolvedNode
+                    openNodeIds.add(neighbor.nodeId)
+
+
+    def _markPath(self):
+        if self.finishId is None:
+            return
+
+        currNode = self.nodeMap[self.finishId]
+        reversePath = []
+
+        while currNode is not None:
+            reversePath.append(currNode)
+            currNode = currNode.pathParent
+
+        self.pathToFinish = list(reversed(reversePath))
 
 

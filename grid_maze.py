@@ -1,33 +1,27 @@
 # author: Jacob Egner
+# date: 2015-07-05
 
 
 import collections
 import copy
 import sys
+import graph
 
 
-RcTuple = collections.namedtuple('Rc', ['r', 'c'])
+class Loc(collections.namedtuple('Rc', ['r', 'c'])):
 
-class Loc(RcTuple):
+    def north(self): return Loc(self.r - 1, self.c)
+    def south(self): return Loc(self.r + 1, self.c)
+    def west(self): return Loc(self.r, self.c - 1)
+    def east(self): return Loc(self.r, self.c + 1)
 
-    def up(self):
-        return Loc(self.r - 1, self.c)
-
-
-    def down(self):
-        return Loc(self.r + 1, self.c)
-
-
-    def left(self):
-        return Loc(self.r, self.c - 1)
+    def cardinalNeighbors(self):
+        return [ self.north(), self.east(), self.south(), self.west(), ]
 
 
-    def right(self):
-        return Loc(self.r, self.c + 1)
-
-
-    def naiveNeighbors(self):
-        return [ self.up(), self.right(), self.down(), self.left(), ]
+    def principalNeighbors(self):
+        return [Loc(r + delR, c + delC) for delR, delC
+            in itertools.product([-1, 0, 1], repeat=2) if delR or delC]
 
 
     def manhattanDist(self, other):
@@ -58,10 +52,9 @@ class GridMaze:
         self.startLoc = self.getLocOfCellType(self.c_start)
         self.finishLoc = self.getLocOfCellType(self.c_finish)
 
-        self.dists = [ [self.c_maxDist] * self.numCols
-            for i in range(self.numRows) ]
-        self.pathedCells = copy.deepcopy(self.cells)
-        self.pathLocs = []
+        self.solvedCells = copy.deepcopy(self.cells)
+
+        self._aStar = None
 
 
     @staticmethod
@@ -79,51 +72,11 @@ class GridMaze:
 
 
     def __str__(self):
-        return '\n'.join([''.join(row) for row in self.pathedCells])
-
-
-    def prettyDists(self):
-        prettyGrid = ""
-
-        for r in range(self.numRows):
-            for c in range(self.numCols):
-                dist = self.dists[r][c]
-
-                if dist == self.c_maxDist:
-                    prettyGrid += "    X"
-                else:
-                    prettyGrid += "{:>5d}".format(dist)
-
-            prettyGrid += "\n"
-
-        return prettyGrid
+        return '\n'.join([''.join(row) for row in self.solvedCells])
 
 
     def getCell(self, loc):
         return self.cells[loc.r][loc.c]
-
-
-    def isWalkable(self, loc):
-        return (self.inBounds(loc)
-            and self.getCell(loc) != self.c_wall)
-
-
-    def getDist(self, loc):
-        return self.dists[loc.r][loc.c]
-
-
-    def setDist(self, loc, dist):
-        self.dists[loc.r][loc.c] = dist
-
-
-    def minPossibleRemainingDist(self, loc):
-        return loc.manhattanDist(self.finishLoc)
-
-
-    def getWalkableNeighbors(self, loc):
-        return [Loc(neighbor.r, neighbor.c)
-                for neighbor in loc.naiveNeighbors()
-                if self.isWalkable(neighbor)]
 
 
     def inBounds(self, loc):
@@ -131,13 +84,14 @@ class GridMaze:
             and loc.r < self.numRows and loc.c < self.numCols)
 
 
-    def getMinDistLoc(self, locs):
-        return min(locs, key = self.getDist)
+    def isWalkable(self, loc):
+        return (self.inBounds(loc)
+            and self.getCell(loc) != self.c_wall)
 
 
-    def getMinEstimatedTotalDistLoc(self, locs):
-        return min(locs, key = lambda loc
-            : self.getDist(loc) + self.minPossibleRemainingDist(loc))
+    def getWalkableNeighbors(self, loc):
+        return [neighbor for neighbor in loc.cardinalNeighbors()
+                if self.isWalkable(neighbor)]
 
 
     def getLocOfCellType(self, cellType):
@@ -149,61 +103,28 @@ class GridMaze:
 
 
     def solve(self):
-        self._computeBestDists()
-        self._indicatePath()
+        def neighborIdsAndCosts(loc):
+            walkableNeighbors = self.getWalkableNeighbors(loc)
+            return zip(walkableNeighbors, [1] * len(walkableNeighbors))
 
+        def estimatedRemainingDist(loc):
+            return self.finishLoc.manhattanDist(loc)
 
-    def _computeBestDists(self):
-        openLocs = set()
+        self._aStar = graph.AStar.fromGrid(
+            self.cells,
+            self.startLoc,
+            self.finishLoc,
+            neighborIdsAndCosts,
+            estimatedRemainingDist)
 
-        for r in range(self.numRows):
-            for c in range(self.numCols):
-                if self.cells[r][c] == self.c_start:
-                    self.dists[r][c] = 0
-                    openLocs.add(Loc(r, c))
-                else:
-                    self.dists[r][c] = self.c_maxDist
+        self._aStar.solve()
 
-        foundFinish = False
+        self.solvedCells = copy.deepcopy(self.cells)
 
-        while not foundFinish and openLocs:
-            newlySolvedLoc = self.getMinEstimatedTotalDistLoc(openLocs)
-
-            if self.getCell(newlySolvedLoc) == self.c_finish:
-                foundFinish = True
-                break
-
-            newFrontierDist = self.getDist(newlySolvedLoc) + 1
-
-            openLocs.remove(newlySolvedLoc)
-
-            neighbors = self.getWalkableNeighbors(newlySolvedLoc)
-
-            for neighbor in neighbors:
-                if newFrontierDist < self.getDist(neighbor):
-                    self.setDist(neighbor, newFrontierDist)
-
-                    openLocs.add(neighbor)
-
-
-    def _indicatePath(self):
-        if self.getDist(self.finishLoc) == self.c_maxDist:
-            return
-
-        currLoc = self.finishLoc
-        reversePath = []
-
-        while currLoc != self.startLoc:
-            if currLoc != self.finishLoc:
-                self.pathedCells[currLoc.r][currLoc.c] = self.c_path
-
-            reversePath.append(currLoc)
-
-            currLoc = self.getMinDistLoc(
-                self.getWalkableNeighbors(currLoc))
-
-        reversePath.append(self.startLoc)
-        self.pathLocs = list(reversed(reversePath))
+        for node in self._aStar.pathToFinish:
+            loc = node.nodeId
+            if loc not in [self.startLoc, self.finishLoc]:
+                self.solvedCells[loc.r][loc.c] = self.c_path
 
 
     @staticmethod
@@ -233,7 +154,6 @@ def main(argv = None):
 
         maze.solve()
 
-        print("dists:\n{}".format(maze.prettyDists()))
         print("\n{}".format(maze))
 
     return 0
@@ -245,6 +165,7 @@ if __name__ == "__main__":
         "",
         "sample_mazes/maze_00.txt",
         "sample_mazes/maze_01.txt",
+        "sample_mazes/maze_02.txt",
         ]))
 
 
