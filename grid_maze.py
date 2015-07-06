@@ -8,7 +8,7 @@ import sys
 import graph
 
 
-class Loc(collections.namedtuple('Rc', ['r', 'c'])):
+class Loc(collections.namedtuple('Loc', ['r', 'c'])):
 
     def north(self): return Loc(self.r - 1, self.c)
     def south(self): return Loc(self.r + 1, self.c)
