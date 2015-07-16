@@ -54,7 +54,7 @@ class GridMaze:
 
         self.solvedCells = copy.deepcopy(self.cells)
 
-        self._aStar = None
+        self.graph = None
 
 
     @staticmethod
@@ -110,18 +110,18 @@ class GridMaze:
         def estimatedRemainingDist(loc):
             return self.finishLoc.manhattanDist(loc)
 
-        self._aStar = graph.AStar.fromGrid(
+        self.graph = graph.Graph.fromGrid(
             self.cells,
             self.startLoc,
             self.finishLoc,
             neighborIdsAndCosts,
             estimatedRemainingDist)
 
-        self._aStar.solve()
+        self.graph.findShortestPathToFinish()
 
         self.solvedCells = copy.deepcopy(self.cells)
 
-        for node in self._aStar.pathToFinish:
+        for node in self.graph.pathToFinish:
             loc = node.nodeId
             if loc not in [self.startLoc, self.finishLoc]:
                 self.solvedCells[loc.r][loc.c] = self.c_path

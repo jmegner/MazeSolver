@@ -60,7 +60,7 @@ class Node:
         return [edge.dstId for edge in self.edges]
 
 
-class AStar:
+class Graph:
 
     def __init__(self, nodeMap, startId, finishId = None):
         '''
@@ -100,10 +100,10 @@ class AStar:
                 if edge.dstId not in visitedNodeIds:
                     nodeIdStack.append(edge.dstId)
 
-        return AStar(nodeMap, startId, finishId)
+        return Graph(nodeMap, startId, finishId)
 
 
-    def solve(self):
+    def findShortestPathToFinish(self):
         self._explore()
         self._markPath()
 
